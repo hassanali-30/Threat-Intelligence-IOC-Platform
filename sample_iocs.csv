@@ -1,0 +1,4 @@
+indicator_type,value,source,confidence,severity,tags,context
+ip,203.0.113.10,community,0.82,high,lab-example,synthetic example
+domain,example-threat.test,trusted,0.9,high,phishing|simulation,synthetic example
+hash,0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef,internal,0.95,critical,malware|training,synthetic example
