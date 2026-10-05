@@ -131,10 +131,12 @@ def parse_stix(data: dict[str, Any], source: str = "community") -> list[IOC]:
         match = STIX_PATTERN.search(str(item.get("pattern", "")))
         if not match:
             continue
-        raw_type = str(item["pattern"]).split(":", 1)[0].strip("[")
+        pattern = str(item["pattern"])
+        raw_type = pattern.split(":", 1)[0].strip("[").lower()
+        indicator_type = "hash" if raw_type == "file" and "hashes." in pattern.lower() else normalize_type(raw_type)
         result.append(IOC(
-            indicator_type=normalize_type(raw_type),
-            value=normalize_value(normalize_type(raw_type), match.group(1)),
+            indicator_type=indicator_type,
+            value=normalize_value(indicator_type, match.group(1)),
             source=source,
             confidence=float(item.get("confidence", 50)) / 100,
             severity="medium",
