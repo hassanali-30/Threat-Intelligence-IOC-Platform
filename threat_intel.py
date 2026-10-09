@@ -229,11 +229,16 @@ class IOCStore:
 
     def correlate(self, values: Iterable[str]) -> list[dict[str, Any]]:
         matches: list[dict[str, Any]] = []
+        indicator_types = sorted(set(TYPE_ALIASES.values()))
         for value in values:
-            rows = self.connection.execute(
-                "SELECT * FROM iocs WHERE value=? ORDER BY score DESC", (normalize_value("", value),)
-            ).fetchall()
-            matches.extend(dict(row) for row in rows)
+            for indicator_type in indicator_types:
+                normalized = normalize_value(indicator_type, value)
+                rows = self.connection.execute(
+                    """SELECT * FROM iocs WHERE indicator_type=? AND value=?
+                       ORDER BY score DESC""",
+                    (indicator_type, normalized),
+                ).fetchall()
+                matches.extend(dict(row) for row in rows)
         return matches
 
     def prune_expired(self) -> int:
