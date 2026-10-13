@@ -4,6 +4,7 @@ from threat_intel import (
     freshness_factor,
     is_expired,
     normalize_value,
+    parse_search_query,
     score_ioc,
 )
 
@@ -40,3 +41,10 @@ def test_correlation_uses_type_specific_normalization(tmp_path):
         }
     finally:
         store.close()
+
+
+def test_api_search_query_is_url_decoded_and_bounded():
+    assert parse_search_query(
+        "/search?q=evil%2Eexample%2Fpath+name&limit=10"
+    ) == "evil.example/path name"
+    assert parse_search_query("/search?limit=10") == ""

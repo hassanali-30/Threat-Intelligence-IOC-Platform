@@ -21,7 +21,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 
 TYPE_ALIASES = {
@@ -250,14 +250,20 @@ class IOCStore:
         self.connection.close()
 
 
+def parse_search_query(path: str) -> str:
+    """Return a decoded q parameter without mixing in other query fields."""
+    return parse_qs(urlsplit(path).query).get("q", [""])[0]
+
+
 class APIHandler(http.server.BaseHTTPRequestHandler):
     store: IOCStore | None = None
 
     def do_GET(self) -> None:
-        if self.path == "/health":
+        request_path = urlsplit(self.path).path
+        if request_path == "/health":
             payload = {"status": "ok", "service": "threat-intelligence"}
-        elif self.path.startswith("/search"):
-            query = self.path.split("q=", 1)[1] if "q=" in self.path else ""
+        elif request_path == "/search":
+            query = parse_search_query(self.path)
             payload = {"results": self.store.search(query) if self.store else []}
         else:
             payload = {"service": "threat-intelligence", "endpoints": ["/health", "/search?q=..."]}
