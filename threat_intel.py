@@ -163,7 +163,8 @@ def load_iocs(path: str | Path) -> list[IOC]:
 def freshness_factor(last_seen: float | None, current: float | None = None) -> float:
     if not last_seen:
         return 0.5
-    age_days = max(0.0, (current or now()) - last_seen) / 86400
+    reference_time = now() if current is None else current
+    age_days = max(0.0, reference_time - last_seen) / 86400
     return max(0.1, 1.0 / (1.0 + age_days / 30.0))
 
 
@@ -178,7 +179,8 @@ def score_ioc(ioc: IOC, current: float | None = None) -> float:
 
 
 def is_expired(ioc: IOC, current: float | None = None) -> bool:
-    return ioc.expires_at is not None and ioc.expires_at <= (current or now())
+    reference_time = now() if current is None else current
+    return ioc.expires_at is not None and ioc.expires_at <= reference_time
 
 
 class IOCStore:
@@ -230,13 +232,15 @@ class IOCStore:
     def correlate(self, values: Iterable[str]) -> list[dict[str, Any]]:
         matches: list[dict[str, Any]] = []
         indicator_types = sorted(set(TYPE_ALIASES.values()))
+        current_time = now()
         for value in values:
             for indicator_type in indicator_types:
                 normalized = normalize_value(indicator_type, value)
                 rows = self.connection.execute(
                     """SELECT * FROM iocs WHERE indicator_type=? AND value=?
+                       AND (expires_at IS NULL OR expires_at > ?)
                        ORDER BY score DESC""",
-                    (indicator_type, normalized),
+                    (indicator_type, normalized, current_time),
                 ).fetchall()
                 matches.extend(dict(row) for row in rows)
         return matches

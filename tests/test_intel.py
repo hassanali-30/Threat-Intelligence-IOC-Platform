@@ -17,6 +17,7 @@ def test_normalization():
 def test_score_is_bounded_and_freshness_decays():
     ioc = IOC("ip", "203.0.113.10", "trusted", 1.0, "high", last_seen=1000)
     assert 0 < score_ioc(ioc, current=1000) <= 100
+    assert freshness_factor(1000, current=0) == 1.0
     assert freshness_factor(1000, current=1000 + 90 * 86400) < freshness_factor(1000, current=1000)
 
 
@@ -24,6 +25,7 @@ def test_expiration():
     ioc = IOC("domain", "expired.example", expires_at=10)
     assert is_expired(ioc, current=11)
     assert not is_expired(ioc, current=9)
+    assert not is_expired(IOC("domain", "epoch.example", expires_at=1), current=0)
 
 
 def test_correlation_uses_type_specific_normalization(tmp_path):
@@ -39,6 +41,18 @@ def test_correlation_uses_type_specific_normalization(tmp_path):
             ("domain", "example.com"),
             ("url", "https://example.test/path"),
         }
+    finally:
+        store.close()
+
+
+def test_correlation_excludes_expired_indicators(tmp_path):
+    store = IOCStore(str(tmp_path / "intel.db"))
+    try:
+        store.upsert(IOC("domain", "expired.example", expires_at=1))
+        store.upsert(IOC("domain", "active.example", expires_at=4_102_444_800))
+        assert store.correlate(["expired.example"]) == []
+        matches = store.correlate(["ACTIVE.EXAMPLE."])
+        assert [item["value"] for item in matches] == ["active.example"]
     finally:
         store.close()
 
